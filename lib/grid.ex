@@ -36,13 +36,13 @@ defmodule Grid do
       |> update_grid(new_grid,{x,y})
   end
 
-  @spec update_grid(atom,list,cell) :: list
+  @spec update_grid(atom,grid,cell) :: grid
   def update_grid(fate,grid,{x,y}) do
     case fate do
       :spawn ->
-        update_grid_value({x,y},grid,1)
+        update_grid_value({x,y},grid,:live)
       :die ->
-        update_grid_value({x,y},grid,0)
+        update_grid_value({x,y},grid,:dead)
       :live ->
         grid
       :stay ->
@@ -65,17 +65,17 @@ defmodule Grid do
   @spec next_coord(cell,list) :: cell
   def next_coord({x,y},grid) do
     cond do
+      y == height(grid) - 1 and x == width(grid) -1 ->
+        {-1, -1}
       x == width(grid) -1 ->
         {0,y+1}
-      y == height(grid) - 1 ->
-        {-1, -1}
       true ->
         {x+1,y}
     end
   end
 
 
-  @spec update_grid_value(tuple,list,integer) :: list
+  @spec update_grid_value(tuple,list,fate) :: list
   def update_grid_value({x,y},grid,val) do
     updated_row = List.replace_at(Enum.fetch!(grid,y), x, val)
     List.replace_at(grid,y,updated_row)
@@ -84,16 +84,14 @@ defmodule Grid do
   @spec cell_fate(integer,cell) :: fate
   def cell_fate(count,cell) do
     cond do
-       count == 3 and cell == 0 ->
+       count == 3 and cell == :dead ->
          :spawn
-       count > 3 and cell == 1 ->
-         :die
-      count < 2 and cell == 1 ->
-        :die
-      count > 1 and count < 4 and cell == 1 ->
-        :live
+      (count < 2 or count > 3) and cell == :live ->
+          :die
+      count > 1 and count < 4 and cell == :live ->
+          :live
       true ->
-        :stay
+          :stay
       end
   end
 
@@ -103,8 +101,12 @@ defmodule Grid do
   end
 
   @spec adjacent_count(grid,integer) :: no_return
-  def adjacent_count([head| tail],n) do
-    adjacent_count(tail,add(n, head))
+  def adjacent_count([:live| tail],n) do
+    adjacent_count(tail,add(n, 1))
+  end
+
+  def adjacent_count([:dead| tail],n) do
+    adjacent_count(tail,add(n, 0))
   end
 
   def adjacent_count([],n) do
@@ -159,7 +161,7 @@ defmodule Grid do
       |> Enum.fetch!(x)
   end
 
-  @spec build_grid([0],non_neg_integer(),pos_integer()) :: [[0],...]
+  @spec build_grid([:dead | :live],non_neg_integer(),pos_integer()) :: [[0],...]
   defp build_grid(grid, _, 0, 0) do
     grid
   end
@@ -175,7 +177,7 @@ defmodule Grid do
   end
 
   defp build_grid(list, width_remaining, height_remaining) do
-    list ++ [0]
+    list ++ [:dead]
       |> build_grid(width_remaining - 1, height_remaining)
   end
 
